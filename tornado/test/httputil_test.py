@@ -554,27 +554,34 @@ class ParseCookieTest(unittest.TestCase):
             (r'a="b=\134\""', 'b=\\"'),
             (r'a="b=\134\042"', 'b=\\"'),
         ]
-        for encoded, decoded in cases:
-            with self.subTest(encoded):
-                c = parse_cookie(encoded)
-                self.assertEqual(c["a"], decoded)
+        for i, (encoded, decoded) in enumerate(cases):
+            c = parse_cookie(encoded)
+            self.assertEqual(
+                c["a"], decoded,
+                "Case {} failed: expected {}, got {}".format(i, decoded, c["a"])
+            )
 
-    def test_unquote_large(self):
-        # Adapted from
-        # https://github.com/python/cpython/blob/dc7a2b6522ec7af41282bc34f405bee9b306d611/Lib/test/test_http_cookies.py#L87
-        # Modified from that test because we handle semicolons differently from the stdlib.
-        #
-        # This is a performance regression test: prior to improvements in Tornado 6.4.2, this test
-        # would take over a minute with n= 100k. Now it runs in tens of milliseconds.
-        n = 100000
-        for encoded in r"\\", r"\134":
-            with self.subTest(encoded):
-                start = time.time()
-                data = 'a="b=' + encoded * n + '"'
-                value = parse_cookie(data)["a"]
-                end = time.time()
-                self.assertEqual(value[:3], "b=\\")
-                self.assertEqual(value[-3:], "\\\\\\")
-                self.assertEqual(len(value), n + 2)
-                # Very loose performance check to avoid false positives
-                self.assertLess(end - start, 1, "Test took too long")
+def test_unquote_large(self):
+    # Adapted from
+    # https://github.com/python/cpython/blob/dc7a2b6522ec7af41282bc34f405bee9b306d611/Lib/test/test_http_cookies.py#L87
+    # Modified from that test because we handle semicolons differently from the stdlib.
+    #
+    # This is a performance regression test: prior to improvements in Tornado 6.4.2, this test
+    # would take over a minute with n= 100k. Now it runs in tens of milliseconds.
+    n = 100000
+    cases = [r"\\", r"\134"]
+    for i, encoded in enumerate(cases):
+        start = time.time()
+        data = 'a="b=' + encoded * n + '"'
+        value = parse_cookie(data)["a"]
+        end = time.time()
+        
+        try:
+            self.assertEqual(value[:3], "b=\\", "Case {} failed: Start mismatch".format(i))
+            self.assertEqual(value[-3:], "\\\\\\", "Case {} failed: End mismatch".format(i))
+            self.assertEqual(len(value), n + 2, "Case {} failed: Length mismatch".format(i))
+            self.assertLess(end - start, 1, "Case {} failed: Test took too long".format(i))
+        except AssertionError as e:
+            print("Test failed for case {}: {}".format(i, e))
+            raise
+
