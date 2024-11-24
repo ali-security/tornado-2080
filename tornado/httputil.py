@@ -1018,10 +1018,11 @@ _unquote_sub = re.compile(r"\\(?:([0-3][0-7][0-7])|(.))").sub
 
 
 def _unquote_replace(m):
-    if m[1]:
-        return chr(int(m[1], 8))
+    # Use .group() to access match groups in a way that works across all Python versions
+    if m.group(1):
+        return chr(int(m.group(1), 8))
     else:
-        return m[2]
+        return m.group(2)
 
 
 def _unquote_cookie(s):
